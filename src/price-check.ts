@@ -23,39 +23,28 @@ const historyFile = path.resolve("./logs/price-history.json");
 
 // Function to load existing price history from file
 function loadPriceHistory() {
-  // If the file doesn't exist yet, create an empty JSON object
   if (!fs.existsSync(historyFile)) {
     fs.writeFileSync(historyFile, JSON.stringify({}, null, 2));
   }
-  // Read the file contents as a string
   const fileData = fs.readFileSync(historyFile, "utf8");
-  // Parse the JSON string into a JavaScript object
   return JSON.parse(fileData);
 }
 
 // Function to save updated price history to file
 function savePriceHistory(history: any) {
-  // Convert the object to a formatted JSON string and write it to the file
   fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
 }
 
 // Function to log a single price entry for a specific product
 function logPrice(productName: string, price: string) {
-  // Load the current history
   const history = loadPriceHistory();
-
-  // If this is the first time we log this product, initialize an array
   if (!history[productName]) {
     history[productName] = [];
   }
-
-  // Add a new entry with timestamp and price
   history[productName].push({
     timestamp: new Date().toISOString(), // Current date and time in ISO format
     price: price, // Price as a string (e.g., "499.99")
   });
-
-  // Save the updated history back to file
   savePriceHistory(history);
 }
 
@@ -63,36 +52,31 @@ function logPrice(productName: string, price: string) {
 // EMAIL ALERT SETUP
 // ─────────────────────────────────────────────
 
-// Configure Nodemailer to send emails via Gmail using environment variables
-// This keeps your email credentials safe and out of the code.
 const transporter = nodemailer.createTransport({
   service: "gmail", // Gmail SMTP service
   auth: {
-    user: process.env.EMAIL_USER, // Your Gmail address (from .env or GitHub secrets)
+    user: process.env.EMAIL_USER, // Gmail address
     pass: process.env.EMAIL_PASS, // Gmail App Password
   },
 });
 
 // Function to send an email alert when a price drops below the target
 async function sendPriceAlert(
-  productName: string, // Name of the product
-  price: number,       // Current price of the product
-  targetPrice: number  // Target price for alert
+  productName: string,
+  price: number,
+  targetPrice: number
 ) {
-  // Define email contents
   const mailOptions = {
-    from: process.env.EMAIL_USER,  // Sender email
-    to: process.env.EMAIL_TO,      // Recipient email (can be the same as sender)
-    subject: `🔥 Price Alert: ${productName}`, // Email subject line
-    text: `${productName} is now £${price}, which is BELOW your target price of £${targetPrice}!`, // Email body
+    from: process.env.EMAIL_USER,
+    to: process.env.EMAIL_TO,
+    subject: `🔥 Price Alert: ${productName}`,
+    text: `${productName} is now £${price}, which is BELOW your target price of £${targetPrice}!`,
   };
 
   try {
-    // Send the email using Nodemailer
     await transporter.sendMail(mailOptions);
     console.log(`✅ Email sent for ${productName}`);
   } catch (error) {
-    // If sending fails, log an error to the console
     console.log(`❌ Failed to send email for ${productName}: ${error}`);
   }
 }
@@ -102,79 +86,78 @@ async function sendPriceAlert(
 // ─────────────────────────────────────────────
 
 async function checkPrices() {
-  // Launch a headless browser (doesn't open a visible window)
- const browser = await chromium.launch({
-  headless: true, // keep headless on GitHub
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--window-size=1920,1080"
-  ]
-});
 
+  // ────────────── OPTION A: Human-like browser launch ──────────────
+  // Launch the browser in headful mode to reduce bot detection
+  // Headless: false for GitHub Actions is ok because it will run in cloud; Amazon sees it more like a real user
+  const browser = await chromium.launch({
+    headless: false, // Set to false for more human-like behavior
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--window-size=1280,800", // realistic screen size
+    ],
+  });
 
-  // Create a new page (tab) in the browser
-  const page = await browser.newPage();
+  // Create a new browser context with realistic options (This is neccessary as Amazon will block the connection when using github to run the job)
+  const context = await browser.newContext({
+    // Mimic a real browser user agent to avoid detection
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    locale: "en-GB", // UK locale
+    viewport: { width: 1280, height: 800 }, // realistic window size
+  });
 
-  // Loop through every product in your products list
-for (const product of products) {
-  console.log(`Checking price for: ${product.name}`);
+  // Create a new page in this human-like context
+  const page = await context.newPage();
 
-  try {
-    // ────────────── LOAD PRODUCT PAGE ──────────────
-    await page.goto(product.url, { waitUntil: "domcontentloaded" });
+  // Loop through all products
+  for (const product of products) {
+    console.log(`Checking price for: ${product.name}`);
 
-    // ────────────── STEP 1: Save HTML & Screenshot ──────────────
-    // Make sure the logs folder exists
-    if (!fs.existsSync("logs")) fs.mkdirSync("logs");
+    try {
+      // ────────────── LOAD PRODUCT PAGE ──────────────
+      await page.goto(product.url, { waitUntil: "domcontentloaded" });
 
-    // Create a safe filename for the product (replace spaces & special chars)
-    const safeName = product.name.replace(/\s/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+      // ────────────── STEP 1: Save HTML & Screenshot ──────────────
+      if (!fs.existsSync("logs")) fs.mkdirSync("logs");
+      const safeName = product.name.replace(/\s/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+      const html = await page.content();
+      fs.writeFileSync(path.join("logs", `${safeName}.html`), html);
+      await page.screenshot({ path: path.join("logs", `${safeName}.png`), fullPage: true });
 
-    // Save full HTML of the page for debugging
-    const html = await page.content();
-    fs.writeFileSync(path.join("logs", `${safeName}.html`), html);
+      // ────────────── WAIT FOR PRICE ELEMENT ──────────────
+      await page.waitForSelector(product.selector, { timeout: 10000 });
 
-    // Save a screenshot of the full page for visual debugging
-    await page.screenshot({ path: path.join("logs", `${safeName}.png`), fullPage: true });
+      // ────────────── EXTRACT PRICE ──────────────
+      const whole = await page.textContent(".a-price-whole");
+      const fraction = await page.textContent(".a-price-fraction");
+      const wholeClean = (whole || "0").replace(/\./g, "");
+      const fractionClean = fraction || "0";
+      const priceString: string = `${wholeClean}.${fractionClean}`;
+      const priceNumber: number = parseFloat(priceString.replace(/,/g, ""));
+      console.log(` → Price: £${priceString}`);
 
-    // ────────────── WAIT FOR PRICE ELEMENT ──────────────
-    await page.waitForSelector(product.selector, { timeout: 10000 });
+      // ────────────── SAVE PRICE HISTORY ──────────────
+      logPrice(product.name, priceString);
 
-    // ────────────── EXTRACT PRICE ──────────────
-    const whole = await page.textContent(".a-price-whole");
-    const fraction = await page.textContent(".a-price-fraction");
+      // ────────────── CHECK TARGET PRICE & SEND EMAIL ──────────────
+      if (product.targetPrice !== undefined && priceNumber <= product.targetPrice) {
+        console.log(`🔥 ${product.name} dropped below target (£${product.targetPrice})!`);
+        await sendPriceAlert(product.name, priceNumber, product.targetPrice);
+      }
 
-    const wholeClean = (whole || "0").replace(/\./g, "");
-    const fractionClean = fraction || "0";
-
-    const priceString: string = `${wholeClean}.${fractionClean}`;
-    const priceNumber: number = parseFloat(priceString.replace(/,/g, ""));
-
-    console.log(` → Price: £${priceString}`);
-
-    // ────────────── SAVE PRICE HISTORY ──────────────
-    logPrice(product.name, priceString);
-
-    // ────────────── CHECK TARGET PRICE & SEND EMAIL ──────────────
-    if (product.targetPrice !== undefined && priceNumber <= product.targetPrice) {
-      console.log(`🔥 ${product.name} dropped below target (£${product.targetPrice})!`);
-      await sendPriceAlert(product.name, priceNumber, product.targetPrice);
+    } catch (err) {
+      console.log(` → Failed to read price for ${product.name} (selector may have changed).`);
     }
-
-  } catch (err) {
-    console.log(` → Failed to read price for ${product.name} (selector may have changed).`);
   }
-}
 
-
-
-
-  // Close the browser after all products are processed
+  // Close the browser after processing all products
   await browser.close();
 }
 
 // Run the price checker
 checkPrices();
+
