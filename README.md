@@ -50,3 +50,42 @@ Google will generate a 16-character password
 
 Update your .env file
 Replace your EMAIL_PASS with the App Password, not your normal Gmail password:
+
+
+Running the Workflow Manually on GitHub
+
+Even though our workflow is scheduled to run automatically every hour, you can also trigger it manually at any time using the GitHub UI.
+
+Steps to Run the Workflow
+
+Open the Actions Tab
+
+Go to your repository on GitHub.
+
+Click Actions at the top of the page (next to Pull requests and Projects).
+
+Select the Workflow
+
+In the left sidebar, find and click the workflow named Price Tracker.
+
+This corresponds to the .github/workflows/price-check.yml file.
+
+Run the Workflow
+
+On the workflow page, look for the green “Run workflow” button on the right-hand side.
+
+Click it.
+
+If prompted, select the branch (usually main).
+
+Click the green Run workflow button to start it immediately.
+
+View the Logs
+
+After triggering, you’ll be taken to the workflow run page.
+
+You can expand each step (Checkout, Setup Node, Install Dependencies, Run Price Checker) to see detailed logs.
+
+The console will show current prices and any alerts if a product is below its target price.
+
+✅ Tip: This is useful for testing or checking prices immediately without waiting for the scheduled run.

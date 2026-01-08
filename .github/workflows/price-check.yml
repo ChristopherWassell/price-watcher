@@ -1,51 +1,54 @@
 # ─────────────────────────────────────────────
 # GitHub Actions workflow for Price Tracker
-# Runs your TypeScript price-check script automatically every hour
+# Automatically checks product prices and sends email alerts
 # ─────────────────────────────────────────────
 
 name: Price Tracker
 
-# Define when this workflow should run
 on:
-  # Schedule the workflow using cron syntax
-  # '0 * * * *' → minute 0 of every hour
+  # Scheduled run: every hour at minute 0
   schedule:
     - cron: '0 * * * *'
   
-  # Allow manual triggering from GitHub UI (optional)
+  # Allow manual triggering from GitHub UI
   workflow_dispatch: 
 
 jobs:
   run-price-check:
-    # Use a fresh Ubuntu Linux environment for each run
+    # Each run gets a fresh Ubuntu VM
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repository (get all your code)
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Node.js (required to run TypeScript + Playwright)
+      # 2️⃣ Set up Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20  # Use Node.js version 20 (latest LTS)
+          node-version: 20 # LTS version
 
-      # 3️⃣ Install dependencies from package.json
-      # npm ci ensures a clean install of exact versions in package-lock.json
+      # 3️⃣ Install project dependencies from package-lock.json
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Load email credentials from GitHub secrets into environment
-      # These are the same secrets you set in your repository settings
+      # 4️⃣ Install Playwright browsers (Chromium, Firefox, WebKit)
+      # This ensures the headless browser can run in GitHub Actions
+      - name: Install Playwright browsers
+        run: npx playwright install
+
+      # 5️⃣ Load email credentials and target email from GitHub secrets
+      # They will be accessible via process.env in your TypeScript code
       - name: Setup environment variables
         run: |
           echo "EMAIL_USER=${{ secrets.EMAIL_USER }}" >> $GITHUB_ENV
           echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}" >> $GITHUB_ENV
           echo "EMAIL_TO=${{ secrets.EMAIL_TO }}" >> $GITHUB_ENV
 
-      # 5️⃣ Run the TypeScript price-check script
-      # npx ts-node executes TypeScript without pre-compiling
+      # 6️⃣ Run the TypeScript price checker
+      # Uses ts-node to execute src/price-check.ts without precompiling
       - name: Run price checker
         run: npx ts-node src/price-check.ts
+
 
