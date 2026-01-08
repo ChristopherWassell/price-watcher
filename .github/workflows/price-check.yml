@@ -2,7 +2,7 @@ name: Price Tracker
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *' # every hour
   workflow_dispatch: 
 
 jobs:
@@ -10,39 +10,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # 1️⃣ Checkout repo
+      - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      # 2️⃣ Set up Node.js
+      - uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm ci
+      # 3️⃣ Install dependencies
+      - run: npm ci
 
-      - name: Install system dependencies for Playwright
-        run: sudo apt-get update && sudo apt-get install -y \
-          libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-          libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
-          libpango-1.0-0 libpangocairo-1.0-0 libasound2 libatspi2.0-0 \
-          libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 \
-          libx11-xcb1 libx11-6 libxcb1 libxcb-dri3-0 libxcb-dri2-0 libxcb-present0 \
-          libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-render0 libxcb-shape0 \
-          libxcb-randr0 libxshmfence1 libxext6 libxfixes3 libxrender1 libxdamage1 \
-          libxrandr2 libxinerama1 libxss1 libxtst6 libgtk-3-0 libgbm1 wget
+      # 4️⃣ Use the Playwright GitHub Action to install browsers and deps automatically
+      - uses: microsoft/playwright-github-action@v1
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Setup environment variables
-        run: |
+      # 5️⃣ Load email credentials from GitHub Secrets
+      - run: |
           echo "EMAIL_USER=${{ secrets.EMAIL_USER }}" >> $GITHUB_ENV
           echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}" >> $GITHUB_ENV
           echo "EMAIL_TO=${{ secrets.EMAIL_TO }}" >> $GITHUB_ENV
 
-      - name: Run price checker
-        run: npx ts-node src/price-check.ts
+      # 6️⃣ Run the price checker
+      - run: npx ts-node src/price-check.ts
+
 
 
 
