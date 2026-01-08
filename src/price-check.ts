@@ -103,7 +103,17 @@ async function sendPriceAlert(
 
 async function checkPrices() {
   // Launch a headless browser (doesn't open a visible window)
-  const browser = await chromium.launch({ headless: true });
+ const browser = await chromium.launch({
+  headless: true, // keep headless on GitHub
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--window-size=1920,1080"
+  ]
+});
+
 
   // Create a new page (tab) in the browser
   const page = await browser.newPage();
