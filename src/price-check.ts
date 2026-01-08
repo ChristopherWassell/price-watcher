@@ -119,52 +119,45 @@ async function checkPrices() {
   const page = await browser.newPage();
 
   // Loop through every product in your products list
-  for (const product of products) {
-    console.log(`Checking price for: ${product.name}`);
+for (const product of products) {
+  console.log(`Checking price for: ${product.name}`);
 
-    try {
-      // Navigate to the product's Amazon URL
-      // waitUntil: "domcontentloaded" waits until the HTML is loaded (ignores images/scripts)
-      await page.goto(product.url, { waitUntil: "domcontentloaded" });
+  try {
+    await page.goto(product.url, { waitUntil: "domcontentloaded" });
+    
+    // Wait longer for the price element to appear
+    await page.waitForSelector(product.selector, { timeout: 20000 });
 
-      // Wait for the price element to appear (max 10 seconds)
-      await page.waitForSelector(product.selector, { timeout: 10000 });
+    // Debug: save page HTML & screenshot to check what GitHub sees
+    const html = await page.content();
+    fs.writeFileSync(`logs/${product.name.replace(/\s/g, "_")}.html`, html);
+    await page.screenshot({ path: `logs/${product.name.replace(/\s/g, "_")}.png`, fullPage: true });
 
-      // Grab the "whole" and "fraction" parts of the price
-      const whole = await page.textContent(".a-price-whole");   // e.g., "499"
-      const fraction = await page.textContent(".a-price-fraction"); // e.g., "99"
+    const whole = await page.textContent(".a-price-whole");
+    const fraction = await page.textContent(".a-price-fraction");
 
-      // Clean up the text: remove thousands separator dots and ensure fraction exists
-      const wholeClean = (whole || "0").replace(/\./g, "");
-      const fractionClean = fraction || "0";
+    const wholeClean = (whole || "0").replace(/\./g, "");
+    const fractionClean = fraction || "0";
 
-      // Combine into a full decimal string (e.g., "499.99")
-      const priceString: string = `${wholeClean}.${fractionClean}`;
+    const priceString: string = `${wholeClean}.${fractionClean}`;
+    const priceNumber: number = parseFloat(priceString.replace(/,/g, ""));
 
-      // Convert string to a number for comparison
-      const priceNumber: number = parseFloat(priceString.replace(/,/g, ""));
+    console.log(` → Price: £${priceString}`);
 
-      // Log the current price to the console
-      console.log(` → Price: £${priceString}`);
+    logPrice(product.name, priceString);
 
-      // Save this price in the history file
-      logPrice(product.name, priceString);
-
-      // Check if the price is below the target price
-      if (product.targetPrice !== undefined && priceNumber <= product.targetPrice) {
-        console.log(`🔥 ${product.name} dropped below target (£${product.targetPrice})!`);
-
-        // Send email alert if below target
-        await sendPriceAlert(product.name, priceNumber, product.targetPrice);
-      }
-
-    } catch (err) {
-      // If anything fails (page not loading, selector not found, etc.)
-      console.log(
-        ` → Failed to read price for ${product.name} (selector may have changed).`
-      );
+    if (product.targetPrice !== undefined && priceNumber <= product.targetPrice) {
+      console.log(`🔥 ${product.name} dropped below target (£${product.targetPrice})!`);
+      await sendPriceAlert(product.name, priceNumber, product.targetPrice);
+    } else {
+      console.log(`⚠️ ${product.name} is above target (£${product.targetPrice}).`);
     }
+
+  } catch (err) {
+    console.log(` → Failed to read price for ${product.name}. Check logs for HTML/screenshot.`);
   }
+}
+
 
   // Close the browser after all products are processed
   await browser.close();
