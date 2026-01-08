@@ -30,6 +30,13 @@ jobs:
 
       # 5️⃣ Run the price checker
       - run: npx ts-node src/price-check.ts
+
+      # 6️⃣ Upload logs folder as artifact for debugging
+      - uses: actions/upload-artifact@v3
+        with:
+          name: price-check-logs
+          path: logs/
+
       
 
 
