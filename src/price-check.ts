@@ -123,32 +123,30 @@ for (const product of products) {
   console.log(`Checking price for: ${product.name}`);
 
   try {
-    // Load the product page
+    // ────────────── LOAD PRODUCT PAGE ──────────────
     await page.goto(product.url, { waitUntil: "domcontentloaded" });
 
     // ────────────── STEP 1: Save HTML & Screenshot ──────────────
     // Make sure the logs folder exists
     if (!fs.existsSync("logs")) fs.mkdirSync("logs");
 
-    // Create a safe filename for the product
+    // Create a safe filename for the product (replace spaces & special chars)
     const safeName = product.name.replace(/\s/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
 
-    // Save full HTML of the page
+    // Save full HTML of the page for debugging
     const html = await page.content();
     fs.writeFileSync(path.join("logs", `${safeName}.html`), html);
 
-    // Save a screenshot of the full page
+    // Save a screenshot of the full page for visual debugging
     await page.screenshot({ path: path.join("logs", `${safeName}.png`), fullPage: true });
-    // ─────────────────────────────────────────────────────────────
 
-    // Wait for the price element to appear
+    // ────────────── WAIT FOR PRICE ELEMENT ──────────────
     await page.waitForSelector(product.selector, { timeout: 10000 });
 
-    // Extract Amazon "whole" and "fraction" parts
+    // ────────────── EXTRACT PRICE ──────────────
     const whole = await page.textContent(".a-price-whole");
     const fraction = await page.textContent(".a-price-fraction");
 
-    // Clean up price text
     const wholeClean = (whole || "0").replace(/\./g, "");
     const fractionClean = fraction || "0";
 
@@ -157,10 +155,10 @@ for (const product of products) {
 
     console.log(` → Price: £${priceString}`);
 
-    // Save to price history file
+    // ────────────── SAVE PRICE HISTORY ──────────────
     logPrice(product.name, priceString);
 
-    // Check against target price
+    // ────────────── CHECK TARGET PRICE & SEND EMAIL ──────────────
     if (product.targetPrice !== undefined && priceNumber <= product.targetPrice) {
       console.log(`🔥 ${product.name} dropped below target (£${product.targetPrice})!`);
       await sendPriceAlert(product.name, priceNumber, product.targetPrice);
@@ -170,6 +168,7 @@ for (const product of products) {
     console.log(` → Failed to read price for ${product.name} (selector may have changed).`);
   }
 }
+
 
 
 

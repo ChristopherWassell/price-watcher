@@ -30,6 +30,7 @@ jobs:
 
       # 5️⃣ Run the price checker
       - run: npx ts-node src/price-check.ts
+      
 
 
 
