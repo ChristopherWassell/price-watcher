@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-price-check:
-    runs-on: ubuntu-22.04  # keep the Ubuntu version that works for you
+    runs-on: ubuntu-22.04
 
     steps:
       # 1️⃣ Checkout repo
@@ -32,10 +32,11 @@ jobs:
       - run: npx ts-node src/price-check.ts
 
       # 6️⃣ Upload logs folder as artifact for debugging
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: price-check-logs
           path: logs/
+
 
       
 
