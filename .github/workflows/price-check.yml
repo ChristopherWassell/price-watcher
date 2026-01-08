@@ -1,54 +1,48 @@
-# ─────────────────────────────────────────────
-# GitHub Actions workflow for Price Tracker
-# Automatically checks product prices and sends email alerts
-# ─────────────────────────────────────────────
-
 name: Price Tracker
 
 on:
-  # Scheduled run: every hour at minute 0
   schedule:
     - cron: '0 * * * *'
-  
-  # Allow manual triggering from GitHub UI
   workflow_dispatch: 
 
 jobs:
   run-price-check:
-    # Each run gets a fresh Ubuntu VM
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20 # LTS version
+          node-version: 20
 
-      # 3️⃣ Install project dependencies from package-lock.json
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Install Playwright browsers (Chromium, Firefox, WebKit)
-      # This ensures the headless browser can run in GitHub Actions
-      - name: Install Playwright browsers
-        run: npx playwright install
+      - name: Install system dependencies for Playwright
+        run: sudo apt-get update && sudo apt-get install -y \
+          libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+          libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
+          libpango-1.0-0 libpangocairo-1.0-0 libasound2 libatspi2.0-0 \
+          libwayland-client0 libwayland-cursor0 libwayland-egl1 libwayland-server0 \
+          libx11-xcb1 libx11-6 libxcb1 libxcb-dri3-0 libxcb-dri2-0 libxcb-present0 \
+          libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-render0 libxcb-shape0 \
+          libxcb-randr0 libxshmfence1 libxext6 libxfixes3 libxrender1 libxdamage1 \
+          libxrandr2 libxinerama1 libxss1 libxtst6 libgtk-3-0 libgbm1 wget
 
-      # 5️⃣ Load email credentials and target email from GitHub secrets
-      # They will be accessible via process.env in your TypeScript code
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
       - name: Setup environment variables
         run: |
           echo "EMAIL_USER=${{ secrets.EMAIL_USER }}" >> $GITHUB_ENV
           echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}" >> $GITHUB_ENV
           echo "EMAIL_TO=${{ secrets.EMAIL_TO }}" >> $GITHUB_ENV
 
-      # 6️⃣ Run the TypeScript price checker
-      # Uses ts-node to execute src/price-check.ts without precompiling
       - name: Run price checker
         run: npx ts-node src/price-check.ts
+
 
 
