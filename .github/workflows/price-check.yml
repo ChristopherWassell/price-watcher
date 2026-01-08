@@ -3,12 +3,11 @@ name: Price Tracker
 on:
   schedule:
     - cron: '0 * * * *' # every hour
-  workflow_dispatch: 
+  workflow_dispatch: # allows manual triggering
 
 jobs:
   run-price-check:
-    runs-on: ubuntu-22.04
-
+    runs-on: ubuntu-22.04  # keep the Ubuntu version that works for you
 
     steps:
       # 1️⃣ Checkout repo
@@ -23,18 +22,15 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps
 
-
-      # 4️⃣ Use the Playwright GitHub Action to install browsers and deps automatically
-      # - uses: microsoft/playwright-github-action@v1
-
-      # 5️⃣ Load email credentials from GitHub Secrets
+      # 4️⃣ Load email credentials from GitHub Secrets
       - run: |
           echo "EMAIL_USER=${{ secrets.EMAIL_USER }}" >> $GITHUB_ENV
           echo "EMAIL_PASS=${{ secrets.EMAIL_PASS }}" >> $GITHUB_ENV
           echo "EMAIL_TO=${{ secrets.EMAIL_TO }}" >> $GITHUB_ENV
 
-      # 6️⃣ Run the price checker
+      # 5️⃣ Run the price checker
       - run: npx ts-node src/price-check.ts
+
 
 
 
