@@ -21,9 +21,11 @@ jobs:
 
       # 3️⃣ Install dependencies
       - run: npm ci
+      - run: npx playwright install --with-deps
+
 
       # 4️⃣ Use the Playwright GitHub Action to install browsers and deps automatically
-      - uses: microsoft/playwright-github-action@v1
+      # - uses: microsoft/playwright-github-action@v1
 
       # 5️⃣ Load email credentials from GitHub Secrets
       - run: |
