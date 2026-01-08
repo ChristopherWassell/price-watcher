@@ -123,19 +123,32 @@ for (const product of products) {
   console.log(`Checking price for: ${product.name}`);
 
   try {
+    // Load the product page
     await page.goto(product.url, { waitUntil: "domcontentloaded" });
-    
-    // Wait longer for the price element to appear
-    await page.waitForSelector(product.selector, { timeout: 20000 });
 
-    // Debug: save page HTML & screenshot to check what GitHub sees
+    // ────────────── STEP 1: Save HTML & Screenshot ──────────────
+    // Make sure the logs folder exists
+    if (!fs.existsSync("logs")) fs.mkdirSync("logs");
+
+    // Create a safe filename for the product
+    const safeName = product.name.replace(/\s/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+
+    // Save full HTML of the page
     const html = await page.content();
-    fs.writeFileSync(`logs/${product.name.replace(/\s/g, "_")}.html`, html);
-    await page.screenshot({ path: `logs/${product.name.replace(/\s/g, "_")}.png`, fullPage: true });
+    fs.writeFileSync(path.join("logs", `${safeName}.html`), html);
 
+    // Save a screenshot of the full page
+    await page.screenshot({ path: path.join("logs", `${safeName}.png`), fullPage: true });
+    // ─────────────────────────────────────────────────────────────
+
+    // Wait for the price element to appear
+    await page.waitForSelector(product.selector, { timeout: 10000 });
+
+    // Extract Amazon "whole" and "fraction" parts
     const whole = await page.textContent(".a-price-whole");
     const fraction = await page.textContent(".a-price-fraction");
 
+    // Clean up price text
     const wholeClean = (whole || "0").replace(/\./g, "");
     const fractionClean = fraction || "0";
 
@@ -144,19 +157,20 @@ for (const product of products) {
 
     console.log(` → Price: £${priceString}`);
 
+    // Save to price history file
     logPrice(product.name, priceString);
 
+    // Check against target price
     if (product.targetPrice !== undefined && priceNumber <= product.targetPrice) {
       console.log(`🔥 ${product.name} dropped below target (£${product.targetPrice})!`);
       await sendPriceAlert(product.name, priceNumber, product.targetPrice);
-    } else {
-      console.log(`⚠️ ${product.name} is above target (£${product.targetPrice}).`);
     }
 
   } catch (err) {
-    console.log(` → Failed to read price for ${product.name}. Check logs for HTML/screenshot.`);
+    console.log(` → Failed to read price for ${product.name} (selector may have changed).`);
   }
 }
+
 
 
   // Close the browser after all products are processed
